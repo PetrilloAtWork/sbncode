@@ -26,8 +26,9 @@ IF (NOT CETBUILDTOOLS_VERSION)
     MESSAGE (FATAL_ERROR "ERROR: setup cetbuildtools to get the cmake modules")
 ENDIF()
 
-set(CMAKE_MODULE_PATH $ENV{CANVAS_ROOT_IO_DIR}/Modules
-                      $ENV{CETBUILDTOOLS_DIR}/Modules
+set(CMAKE_MODULE_PATH "$ENV{CANVAS_ROOT_IO_DIR}/Modules"
+                      "$ENV{ART_DIR}/Modules"
+                      "$ENV{CETBUILDTOOLS_DIR}/Modules"
                       ${CMAKE_MODULE_PATH})
 
 include(CetCMakeEnv)
@@ -52,7 +53,9 @@ cet_report_compiler_flags()
 # these are minimum required versions, not the actual product versions
 find_ups_product(cetbuildtools v05_14_00)
 find_ups_product(sbndcode v06_67_00)
-find_ups_product(uboonecode v06_67_00)
+find_ups_root()
+find_ups_boost()
+# find_ups_product(uboonecode v06_67_00)
 
 # macros for dictionary and simple_plugin
 include(ArtDictionary)
