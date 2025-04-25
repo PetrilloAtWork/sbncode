@@ -9,6 +9,7 @@
 
 // LArSoft includes
 #include "larcorealg/Geometry/fwd.h"
+#include "sbnalg/Geometry/OpChannelToTPCset.h"
 
 #include "lardataobj/RecoBase/PFParticle.h"
 #include "lardataobj/RecoBase/Shower.h"
@@ -217,18 +218,12 @@ namespace caf
                         caf::SRSBNDCRTTrack &srsbndcrttrack,
                         bool allowEmpty = false);
 
-  void FillICARUSOpFlash(const recob::OpFlash &flash,
-                  std::vector<recob::OpHit const*> const& hits,
-                  int cryo,
-                  caf::SROpFlash &srflash,
-                  bool allowEmpty = false);
+  void FillOpFlash(const recob::OpFlash &flash,
+                   std::vector<recob::OpHit const*> const& hits,
+                   sbn::OpChannelToTPCset const& opDetMap,
+                   caf::SROpFlash &srflash,
+                   bool allowEmpty = false);
 
-  void FillSBNDOpFlash(const recob::OpFlash &flash,
-                  std::vector<recob::OpHit const*> const& hits,
-                  int tpc,
-                  caf::SROpFlash &srflash,
-                  bool allowEmpty = false);
-                  
   void FillCRTPMTMatch(const sbn::crt::CRTPMTMatching &match,
 		       caf::SRCRTPMTMatch &srmatch,
 		       bool allowEmpty = false);

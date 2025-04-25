@@ -6,6 +6,7 @@
 
 #include "larcorealg/Geometry/GeometryCore.h"
 #include "larcorealg/Geometry/WireReadoutGeom.h"
+#include "larcoreobj/SimpleTypesAndConstants/readout_types.h" // readout::TPCsetID
 
 #include "FillReco.h"
 #include "RecoUtils/RecoUtils.h"
@@ -179,11 +180,11 @@ namespace caf
   }
 
 
-  void FillICARUSOpFlash(const recob::OpFlash &flash,
-                  std::vector<recob::OpHit const*> const& hits,
-                  int cryo, 
-                  caf::SROpFlash &srflash,
-                  bool allowEmpty) {
+  void FillOpFlash(const recob::OpFlash &flash,
+                   std::vector<recob::OpHit const*> const& hits,
+                   sbn::OpChannelToTPCset const& opDetMap,
+                   caf::SROpFlash &srflash,
+                   bool allowEmpty) {
 
     srflash.setDefault();
 
@@ -191,26 +192,47 @@ namespace caf
     srflash.timewidth = flash.TimeWidth();
 
     double firstTime = std::numeric_limits<double>::max();
+    
+    geo::CryostatID cryoID; // the cryostat all hits are in; must be valid
+    readout::TPCsetID tpcsetID; // the TPC set all hits are in; invalid if more than one
+    std::array<float, 2> pesums; // sum over: [0] east wall, [1] west wall
+    pesums.fill(0.0);
+    
     for(const auto& hit: hits){
+      // time
       double const hitTime = hit->HasStartTime()? hit->StartTime(): hit->PeakTime();
       if (firstTime > hitTime)
         firstTime = hitTime;
-    }
+      
+      // location
+      readout::TPCsetID const hit_tpcsetID = opDetMap[hit->OpChannel()];
+      assert(hit_tpcsetID && (hit_tpcsetID.TPCset < 2));
+      
+      // all hits in a flash should come from the same cryostat; pick the first
+      if (!cryoID) { // first hit
+        cryoID = hit_tpcsetID;
+        tpcsetID = hit_tpcsetID;
+      }
+      else {
+        assert(cryoID == hit_tpcsetID); // check the cryostat assumption above
+        // if TPC set has changed, invalidate it:
+        if (tpcsetID.isValid && (hit_tpcsetID != tpcsetID)) {
+          tpcsetID.markInvalid();
+          tpcsetID.TPCset = readout::TPCsetID::InvalidID;
+        }
+      }
+      
+      // p.e.
+      pesums[hit_tpcsetID.TPCset] += hit->PE();
+      
+    } // for all hits
+    
     srflash.firsttime = firstTime;
+    
+    std::copy(pesums.cbegin(), pesums.cend(), srflash.peperwall);
 
-    srflash.cryo = cryo; // 0 in SBND, 0/1 for E/W in ICARUS
-
-    // Sum over each wall, not very SBND-compliant
-    float sumEast = 0.;
-    float sumWest = 0.;
-    int countingOffset = 0;
-    if ( cryo == 1 ) countingOffset += 180;
-    for ( int PMT = 0 ; PMT < 180 ; PMT++ ) {
-      if ( PMT <= 89 ) sumEast += flash.PEs().at(PMT + countingOffset);
-      else sumWest += flash.PEs().at(PMT + countingOffset);
-    }
-    srflash.peperwall[0] = sumEast;
-    srflash.peperwall[1] = sumWest;
+    srflash.cryo = cryoID.Cryostat; // 0 in SBND, 0/1 for E/W in ICARUS
+    srflash.tpc = tpcsetID? tpcsetID.TPCset: caf::kUninitializedInt;
 
     srflash.totalpe = flash.TotalPE();
     srflash.fasttototal = flash.FastToTotal();
@@ -225,42 +247,8 @@ namespace caf
       srflash.center.SetX( flash.XCenter() );
       srflash.width.SetX( flash.XWidth() );
     }
-  }
+  } // FillOpFlash()
 
-  void FillSBNDOpFlash(const recob::OpFlash &flash,
-    std::vector<recob::OpHit const*> const& hits,
-    int tpc, 
-    caf::SROpFlash &srflash,
-    bool allowEmpty) {
-
-    srflash.setDefault();
-
-    srflash.time = flash.Time();
-    srflash.timewidth = flash.TimeWidth();
-
-    double firstTime = std::numeric_limits<double>::max();
-    for(const auto& hit: hits){
-    double const hitTime = hit->HasStartTime()? hit->StartTime(): hit->PeakTime();
-    if (firstTime > hitTime)
-    firstTime = hitTime;
-    }
-    srflash.firsttime = firstTime;
-    srflash.tpc = tpc;
-
-    srflash.totalpe = flash.TotalPE();
-    srflash.fasttototal = flash.FastToTotal();
-    srflash.onbeamtime = flash.OnBeamTime();
-
-    srflash.center.SetXYZ( -9999.f, flash.YCenter(), flash.ZCenter() );
-    srflash.width.SetXYZ( -9999.f, flash.YWidth(), flash.ZWidth() );
-
-    // Checks if ( recob::OpFlash.XCenter() != std::numeric_limits<double>::max() )
-    // See LArSoft OpFlash.h at https://nusoft.fnal.gov/larsoft/doxsvn/html/OpFlash_8h_source.html
-    if ( flash.hasXCenter() ) {
-    srflash.center.SetX( flash.XCenter() );
-    srflash.width.SetX( flash.XWidth() );
-    }
-  }
 
   std::vector<float> double_to_float_vector(const std::vector<double>& v)
   {

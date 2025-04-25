@@ -20,6 +20,7 @@
 #include "sbncode/CAFMaker/FillExposure.h"
 #include "sbncode/CAFMaker/FillTrigger.h"
 #include "sbncode/CAFMaker/Utils.h"
+#include "sbnalg/Geometry/OpChannelToTPCset.h"
 
 // C/C++ includes
 #include <fenv.h>
@@ -141,6 +142,8 @@
 
 // Metadata
 #include "sbncode/Metadata/MetadataSBN.h"
+
+using namespace std::string_literals;
 
 namespace sbn{
   namespace evwgh{
@@ -1653,55 +1656,37 @@ void CAFMaker::produce(art::Event& evt) noexcept {
   }
 
   // Get all of the OpFlashes
+  sbn::OpChannelToTPCset const opChannelToWallMap{ *geom, wireReadout };
+  
   std::vector<caf::SROpFlash> srflashes;
-  if(fDet == kICARUS)
-  {
+  std::vector<std::string> const tpc_suffixes
+    = (fDet == kSBND)? std::vector{ "tpc0"s, "tpc1"s }: std::vector{ ""s };
+  
+  for (std::string const& tpc_suffix: tpc_suffixes) {
     for (const std::string& pandora_tag_suffix : pandora_tag_suffixes) {
+      std::string const flashLabel = fParams.OpFlashLabel() + pandora_tag_suffix + tpc_suffix;
       art::Handle<std::vector<recob::OpFlash>> flashes_handle;
-      GetByLabelStrict(evt, fParams.OpFlashLabel() + pandora_tag_suffix, flashes_handle);
+      GetByLabelStrict(evt, flashLabel, flashes_handle);
       // fill into event
-      if (flashes_handle.isValid()) {
-        const std::vector<recob::OpFlash> &opflashes = *flashes_handle;
-        int cryostat = ( pandora_tag_suffix.find("W") != std::string::npos ) ? 1 : 0;
+      if (!flashes_handle.isValid()) continue;
+      const std::vector<recob::OpFlash> &opflashes = *flashes_handle;
 
-        // get associated OpHits for each OpFlash
-        art::FindMany<recob::OpHit> findManyHits(flashes_handle, evt, fParams.OpFlashLabel() + pandora_tag_suffix);
+      // get associated OpHits for each OpFlash
+      art::FindMany<recob::OpHit> findManyHits(flashes_handle, evt, flashLabel);
 
-        int iflash=0;
-        for (const recob::OpFlash& flash : opflashes) {
+      int iflash=0;
+      for (const recob::OpFlash& flash : opflashes) {
 
-          std::vector<recob::OpHit const*> const& ophits = findManyHits.at(iflash);
+        std::vector<recob::OpHit const*> const& ophits = findManyHits.at(iflash);
 
-          srflashes.emplace_back();
-          FillICARUSOpFlash(flash, ophits, cryostat, srflashes.back());
-          iflash++;
-        }
-      }
-    }
-  }
-  else if(fDet == kSBND)
-  {
-    std::vector<std::string> tpc_suffixes_sbnd = {"tpc0", "tpc1"};
-
-    for (size_t tpc=0; tpc<tpc_suffixes_sbnd.size(); tpc++) {
-      art::Handle<std::vector<recob::OpFlash>> flashes_handle;
-      GetByLabelStrict(evt, fParams.OpFlashLabel() + tpc_suffixes_sbnd[tpc], flashes_handle);
-      // fill into event
-      if (flashes_handle.isValid()) {
-        const std::vector<recob::OpFlash> &opflashes = *flashes_handle;
-        // get associated OpHits for each OpFlash
-        art::FindMany<recob::OpHit> findManyHits(flashes_handle, evt, fParams.OpFlashLabel() + tpc_suffixes_sbnd[tpc]);
-        int iflash=0;
-        for (const recob::OpFlash& flash : opflashes) {
-          std::vector<recob::OpHit const*> const& ophits = findManyHits.at(iflash);
-          srflashes.emplace_back();
-          FillSBNDOpFlash(flash, ophits, tpc, srflashes.back());
-          iflash++;
-        }
-      }
-    }
-  }
-
+        srflashes.emplace_back();
+        FillOpFlash(flash, ophits, opChannelToWallMap, srflashes.back());
+        iflash++;
+      } // for flashes
+      
+    } // for pandora suffixes
+  } // for TPC suffixes
+  
   // collect the TPC slices
   std::vector<art::Ptr<recob::Slice>> slices;
   std::vector<std::string> slice_tag_suffixes;
