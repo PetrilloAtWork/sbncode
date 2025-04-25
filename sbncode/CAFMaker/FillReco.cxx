@@ -192,6 +192,7 @@ namespace caf
     srflash.timewidth = flash.TimeWidth();
 
     double firstTime = std::numeric_limits<double>::max();
+    raw::ChannelID_t firstPMT = std::numeric_limits<raw::ChannelID_t>::max();
     
     geo::CryostatID cryoID; // the cryostat all hits are in; must be valid
     readout::TPCsetID tpcsetID; // the TPC set all hits are in; invalid if more than one
@@ -199,13 +200,17 @@ namespace caf
     pesums.fill(0.0);
     
     for(const auto& hit: hits){
+      raw::ChannelID_t const channel = hit->OpChannel();
+      
       // time
       double const hitTime = hit->HasStartTime()? hit->StartTime(): hit->PeakTime();
-      if (firstTime > hitTime)
+      if (firstTime > hitTime) {
         firstTime = hitTime;
+        firstPMT = channel;
+      }
       
       // location
-      readout::TPCsetID const hit_tpcsetID = opDetMap[hit->OpChannel()];
+      readout::TPCsetID const hit_tpcsetID = opDetMap[channel];
       assert(hit_tpcsetID && (hit_tpcsetID.TPCset < 2));
       
       // all hits in a flash should come from the same cryostat; pick the first
@@ -228,6 +233,7 @@ namespace caf
     } // for all hits
     
     srflash.firsttime = firstTime;
+    srflash.firstpmt = firstPMT;
     
     std::copy(pesums.cbegin(), pesums.cend(), srflash.peperwall);
 
