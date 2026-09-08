@@ -2442,7 +2442,7 @@ void CAFMaker::produce(art::Event& evt) noexcept {
     FillSliceOpT0Finder(slcOpT0, recslc, timeShifter);
     FillSliceBarycenter(slcHits, slcSpacePoints, recslc);
     FillSliceLightCalo(slcLightCalo, recslc);
-    FillCorrectedOpFlashTiming(slcCorrectedOpFlash, recslc);
+    FillCorrectedOpFlashTiming(slcCorrectedOpFlash, recslc, timeShifter);
     FillTPCPMTBarycenterMatch(barycenterMatch, recslc, timeShifter);
     FillCVNScores(cvnResult, recslc);
     

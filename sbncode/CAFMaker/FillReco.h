@@ -320,7 +320,8 @@ namespace caf
                            caf::TimeRefShifter<> const& shifter);
 
   void FillCorrectedOpFlashTiming(const std::vector<art::Ptr<sbn::CorrectedOpFlashTiming>> &slcCorrectedOpFlash,
-                           caf::SRSlice& slice);
+                           caf::SRSlice& slice,
+                           caf::TimeRefShifter<> const& shifter);
 
   void FillCVNScores(const lcvn::Result *cvnResult,
                      caf::SRSlice& slice);

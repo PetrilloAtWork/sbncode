@@ -379,15 +379,16 @@ namespace caf
 
 
   void FillCorrectedOpFlashTiming(const std::vector<art::Ptr<sbn::CorrectedOpFlashTiming>> &slcCorrectedOpFlash,
-                           caf::SRSlice& slice)
+                           caf::SRSlice& slice,
+                           caf::TimeRefShifter<> const& shifter)
   { 
     slice.correctedOpFlash.setDefault();
     if ( slcCorrectedOpFlash.empty()==false ) {
       const sbn::CorrectedOpFlashTiming &_correctedOpFlash = *slcCorrectedOpFlash[0];
-      slice.correctedOpFlash.OpFlashT0  = _correctedOpFlash.OpFlashT0;
+      slice.correctedOpFlash.OpFlashT0  = shifter.shiftedTime(_correctedOpFlash.OpFlashT0);
       slice.correctedOpFlash.NuToFLight  = _correctedOpFlash.NuToFLight;
       slice.correctedOpFlash.NuToFCharge  = _correctedOpFlash.NuToFCharge;
-      slice.correctedOpFlash.OpFlashT0Corrected  = _correctedOpFlash.OpFlashT0Corrected;
+      slice.correctedOpFlash.OpFlashT0Corrected  = shifter.shiftedTime(_correctedOpFlash.OpFlashT0Corrected);
     }
   }
 
